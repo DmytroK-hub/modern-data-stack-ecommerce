@@ -11,3 +11,4 @@ ecommerce_dbt/profiles.yml
 logs/
 .idea/
 ecommerce_dbt/.user.yml
+Claude outputs/
