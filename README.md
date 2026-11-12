@@ -173,3 +173,24 @@ ecommerce_dbt:
 ├── .gitignore
 └── README.md
 ```
+
+## Оркестрація (ЛР №3, Apache Airflow)
+
+Конвеєр `ecommerce_elt_pipeline` (файл `airflow/dags/ecommerce_pipeline.py`) запускається щодня (`@daily`) і складається з трьох тасків:
+
+1. `extract_and_load_raw_data` (PythonOperator) — генерація та завантаження «сирих» даних у схему `raw` (функція `load_data_to_dwh` з ЛР №1, `airflow/dags/scripts/data_generator.py`);
+2. `dbt_run_transformations` (BashOperator) — `dbt run`, побудова staging- та marts-моделей (ЛР №2);
+3. `dbt_test_task` (BashOperator) — `dbt test`, перевірка якості даних: `unique` та `not_null` для `stg_borrowers.borrower_id` (`ecommerce_dbt/models/staging/schema.yml`).
+
+Залежності: `extract_load_task >> dbt_run_task >> dbt_test_task`.
+
+Успішне виконання DAG-а (вкладка Graph):
+
+![Airflow DAG ecommerce_elt_pipeline — Graph](docs/airflow_dag_graph.png)
+
+Запуск (Airflow 2.11.2 у WSL2 Ubuntu):
+
+```bash
+export AIRFLOW_HOME=$(pwd)/airflow
+airflow standalone
+```
