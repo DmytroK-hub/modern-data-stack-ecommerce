@@ -12,3 +12,11 @@ logs/
 .idea/
 ecommerce_dbt/.user.yml
 Claude outputs/
+# Airflow (ЛР №3)
+airflow/airflow.cfg
+airflow/airflow.db
+airflow/logs/
+airflow/webserver_config.py
+airflow/standalone_admin_password.txt
+airflow/airflow-webserver*.pid
+__pycache__/

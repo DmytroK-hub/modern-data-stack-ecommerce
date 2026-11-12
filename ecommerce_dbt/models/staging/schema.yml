@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: stg_borrowers
+    description: "Очищені дані позичальників (staging-шар), аналог stg_users з методички"
+    columns:
+      - name: borrower_id
+        description: "Унікальний ідентифікатор позичальника"
+        tests:
+          - unique
+          - not_null
