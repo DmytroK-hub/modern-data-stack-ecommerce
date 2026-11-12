@@ -1,0 +1,24 @@
+version: 2
+
+# Опис "сирих" таблиць з Лабораторної №1 (схема raw).
+# Відповідність прикладу з методички:
+#   users    -> borrowers     (позичальники)
+#   products -> loan_types    (типи позик, кредитні продукти)
+#   orders   -> issued_loans  (видані кредити)
+
+sources:
+  - name: raw_ecommerce
+    schema: raw
+    tables:
+      - name: borrowers
+        description: "Позичальники (є дублікати та порожні email)"
+      - name: loan_types
+        description: "Типи позик: довідник кредитних продуктів"
+      - name: issued_loans
+        description: "Видані кредити (факт)"
+      - name: credit_scores
+        description: "Кредитні рейтинги позичальників"
+      - name: repayments
+        description: "Погашення кредитів (факт)"
+      - name: reviews
+        description: "Відгуки позичальників про типи позик"

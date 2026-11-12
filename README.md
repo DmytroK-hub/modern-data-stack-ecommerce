@@ -8,7 +8,7 @@
 | Етап | Що робиться | Інструменти | Статус |
 |---|---|---|---|
 | ЛР №1: Extract & Load | Генерація даних і завантаження в сирий шар `raw` | Python, Docker, PostgreSQL | ✅ |
-| ЛР №2: Transform | Очищення даних і модель «Зірка» | dbt | ⏳ |
+| ЛР №2: Transform | Очищення даних і модель «Зірка» | dbt Core | ✅ |
 | ЛР №3: Orchestration | Автоматичний запуск пайплайна за розкладом | Apache Airflow | ⏳ |
 | ЛР №4: BI & Governance | Дашборди та Data Lineage | Metabase, dbt docs | ⏳ |
 
@@ -92,10 +92,82 @@ docker exec -it dwh_postgres psql -U admin -d ecommerce_dwh -c "\dt raw.*"
 
 Параметри підключення до сховища: host `localhost`, порт `5432`, база `ecommerce_dwh`, користувач `admin`, пароль `adminpassword`.
 
+## Трансформація даних (ЛР №2, dbt)
+
+На цьому етапі сирі дані зі схеми `raw` очищуються та перетворюються на модель «Зірка» за методологією Кімбола. Усі трансформації написані як SQL-запити (SELECT) у dbt, результат записується у схему `analytics`.
+
+```
+схема raw (ЛР №1)          staging (views)            marts (tables, «Зірка»)
+borrowers      ──────────► stg_borrowers   ─────────► dim_borrowers
+loan_types     ──────────► stg_loan_types  ─────────► dim_loan_types
+issued_loans   ──────────► stg_issued_loans ────────► fct_issued_loans
+```
+
+Відповідність прикладу з методички: `users` → `borrowers`, `products` → `loan_types`, `orders` → `issued_loans`.
+
+### Структура dbt-проєкту
+
+```
+ecommerce_dbt/
+├── dbt_project.yml              # налаштування проєкту: staging → view, marts → table
+├── profiles.yml                 # підключення до DWH (не в Git, див. нижче)
+└── models/
+    ├── staging/                 # шар легкого очищення (views)
+    │   ├── src_ecommerce.yml    # опис джерел: таблиці схеми raw
+    │   ├── stg_borrowers.sql    # видалення дублікатів (ROW_NUMBER), NULL email → unknown@example.com
+    │   ├── stg_loan_types.sql   # очищення «цін»: суми та ставка не менші за 0
+    │   └── stg_issued_loans.sql # приведення типів, issue_date → issued_at
+    └── marts/                   # вітрини даних, схема «Зірка» (tables)
+        ├── dim_borrowers.sql    # вимір: позичальники
+        ├── dim_loan_types.sql   # вимір: типи позик
+        └── fct_issued_loans.sql # факт: видані кредити + total_amount
+```
+
+| Модель | Тип | Опис |
+|---|---|---|
+| `stg_borrowers` | view | Позичальники без дублікатів (1050 → 1000 рядків), порожні email замінено |
+| `stg_loan_types` | view | Типи позик; `min_amount`, `max_amount`, `annual_interest_rate` не менші за 0 |
+| `stg_issued_loans` | view | Видані кредити з приведеними типами |
+| `dim_borrowers` | table | Вимір «Позичальник» |
+| `dim_loan_types` | table | Вимір «Тип позики» |
+| `fct_issued_loans` | table | Факт «Виданий кредит»; приєднано лише існуючих позичальників і типи позик |
+
+`total_amount` у `fct_issued_loans` є аналогом `quantity * price` з методички: це сума до повернення з урахуванням відсотків,
+`amount * (1 + annual_interest_rate / 100 * term_days / 365)`.
+
+### Запуск dbt
+
+```bash
+cd ecommerce_dbt
+set DBT_PROFILES_DIR=.             # Windows CMD
+# $env:DBT_PROFILES_DIR="."        # Windows PowerShell
+dbt debug                          # перевірка підключення
+dbt run                            # побудова моделей у схемі analytics
+```
+
+Файл `profiles.yml` містить пароль до бази, тому додано в `.gitignore`. Для запуску створіть його в папці `ecommerce_dbt/`:
+
+```yaml
+ecommerce_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: admin
+      password: adminpassword
+      port: 5432
+      dbname: ecommerce_dwh
+      schema: analytics
+      threads: 4
+      keepalives_idle: 0
+```
+
 ## Структура репозиторію
 
 ```
-├── data_generator.py    # генерація даних + завантаження в DWH
+├── data_generator.py    # генерація даних + завантаження в DWH (ЛР №1)
+├── ecommerce_dbt/       # dbt-проєкт: трансформації та модель «Зірка» (ЛР №2)
 ├── docker-compose.yml   # контейнер PostgreSQL
 ├── requirements.txt     # Python-залежності
 ├── .gitignore
